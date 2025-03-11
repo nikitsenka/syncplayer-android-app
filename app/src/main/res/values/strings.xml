@@ -1,0 +1,46 @@
+<resources>
+    <string name="app_name">SyncPlayer</string>
+    
+    <!-- Main Activity -->
+    <string name="connect_button">Connect</string>
+    <string name="disconnect_button">Disconnect</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_disconnected">Disconnected</string>
+    <string name="status_connecting">Connecting…</string>
+    <string name="connection_error">Connection Error: %s</string>
+    <string name="player_not_connected">Not connected to server</string>
+    <string name="player_waiting">Waiting for playback command…</string>
+    <string name="player_playing">Playing: %s</string>
+    <string name="player_error">Error: %s</string>
+    
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="action_settings">Settings</string>
+    <string name="pref_server_ip">Server IP Address</string>
+    <string name="pref_server_ip_summary">The IP address of the sync server</string>
+    <string name="pref_server_port">Server Port</string>
+    <string name="pref_server_port_summary">The port of the sync server (default: 12345)</string>
+    <string name="pref_music_directory">Music Directory</string>
+    <string name="pref_music_directory_summary">The local directory containing your music files</string>
+    <string name="pref_calibration">Playback Calibration (ms)</string>
+    <string name="pref_calibration_summary">Fine-tune synchronization timing (positive or negative values)</string>
+    <string name="pref_enable_debug">Enable Debug Mode</string>
+    <string name="pref_enable_debug_summary">Show detailed command and timing information</string>
+    <string name="pref_category_server">Server Connection</string>
+    <string name="pref_category_playback">Playback Settings</string>
+    <string name="pref_category_debug">Debug Options</string>
+    
+    <!-- Permissions -->
+    <string name="permission_rationale">Storage access permission is needed to play music files</string>
+    <string name="permission_denied">Storage permission denied. Unable to play local files.</string>
+    
+    <!-- Dialogs -->
+    <string name="dialog_select_music_directory">Select Music Directory</string>
+    <string name="dialog_ok">OK</string>
+    <string name="dialog_cancel">Cancel</string>
+    
+    <!-- Errors and status messages -->
+    <string name="error_invalid_settings">Invalid settings. Please check server connection details.</string>
+    <string name="error_missing_file">File not found: %s</string>
+    <string name="connecting_to_server">Connecting to %s:%s…</string>
+</resources>

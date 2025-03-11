@@ -1,0 +1,531 @@
+--- ./REQUIREMENTS.md ---
+Below is a step-by-step implementation plan for creating a multi-device, synchronized MP3 player using Python and Raspberry Pi (with the “local file + sync” approach). The plan includes setting up a master controller and multiple Raspberry Pi clients that each have a local copy of the audio. Communication will be over the network via JSON commands to ensure all devices start, pause, seek, and stay in sync.
+
+1. Project Overview
+
+Goal:
+	•	Allow multiple Raspberry Pi devices to play the same MP3 file in near-perfect sync.
+	•	A master device (which could be your laptop, a server, or another Pi) sends control messages (start time, pause, resume, seek).
+	•	Each Pi has python-vlc to enable precise get/set playback position.
+
+Key Requirements:
+	1.	Each Pi must store the same MP3 locally (same sample rate, length, etc.).
+	2.	A network channel (TCP sockets or WebSockets) for control messages.
+	3.	python-vlc (or alternative) for playback control on each Pi (get_time, set_time, play, pause, etc.).
+	4.	Periodic “heartbeat” messages to correct drift.
+
+2. High-Level Architecture
+	1.	Master (Controller):
+	•	Runs Python code that listens for or initiates user commands (play, pause, seek).
+	•	Broadcasts these commands to all Raspberry Pis over TCP/WebSocket.
+	•	Sends periodic heartbeat messages (playhead timestamp) for drift correction.
+	2.	Clients (Raspberry Pis):
+	•	Each runs a Python script that:
+	•	Connects to the master.
+	•	Uses python-vlc to load and play the local MP3.
+	•	Listens for JSON commands (start, pause, seek, etc.).
+	•	Performs small adjustments to stay in sync with the master’s reported position.
+	3.	Data Flow:
+	•	Very little data for playback (the audio file is local); the network only carries small control messages.
+	•	Master’s periodic “heartbeat” keeps everything aligned.
+
+3. Detailed Implementation Steps
+
+3.1 Phase 1: Environment & Dependency Setup
+	1.	Prepare Raspberry Pis
+	•	Install Raspberry Pi OS (Lite or Desktop).
+	•	Ensure network connectivity (Ethernet or Wi-Fi).
+	•	Enable SSH if you wish to deploy or debug remotely.
+	2.	Install Dependencies
+	•	On each Pi:
+		```bash
+		sudo apt-get update
+		sudo apt-get install -y vlc
+		pip install python-vlc
+		```
+
+	•	Confirm that python3 and pip are installed.
+	•	Optional: If the master is also a Pi, install the same. Otherwise, for a desktop master, ensure pip install python-vlc plus a local VLC install.
+
+	3.	Check Audio Output
+	•	Decide which Pi audio output to use: HDMI, analog, USB sound card, etc.
+	•	Test with vlc path/to/test.mp3 to confirm audio plays.
+	4.	Copy/Distribute MP3 File
+	•	Create a folder (e.g., /home/pi/music/).
+	•	Copy the MP3(s) you’ll be testing. Make sure each Pi has exactly the same file.
+
+3.2 Phase 2: Implement Basic Master Server
+	1.	Choose Communication Method
+	•	Easiest is TCP sockets in Python (or a simple WebSocket server using e.g., websockets library).
+	2.	Server Code (Pseudo-outline):
+	3.	Commands:
+	•	You could add pause_playback(), seek(newPosMs), etc., and broadcast them.
+	•	This forms the master controller’s logic.
+
+3.3 Phase 3: Implement Raspberry Pi Client
+	1.	Client Connection
+	•	Each Pi will run a Python script that connects to the master.
+	2.	VLC Player Setup
+	•	python-vlc to load the local MP3.
+	3.	Handle Commands
+	•	PLAY: schedule the player.play() at startTime.
+	•	HEARTBEAT: do drift correction.
+	•	SEEK: player.set_time(newPosMs).
+	•	PAUSE/RESUME: player.pause() or player.play().
+	4.	Sample Code:
+	5.	Deployment
+	•	Copy this script onto each Pi (e.g., scp, Git, etc.).
+	•	Make sure MASTER_IP points to the master’s IP address.
+	•	Run python3 pi_client.py.
+	•	The Pi will connect and wait for commands.
+
+3.4 Phase 4: Testing & Validation
+	1.	Local Single-Pi Test:
+	•	Run both the master and client on the same machine (or same Pi if you want) to confirm commands and playback logic.
+	2.	Multi-Pi Test:
+	•	Start the master on your main machine (or a dedicated Pi).
+	•	Start the client script on each Pi.
+	•	Type play in the master console.
+	•	All Pis should begin playing in sync after the 2s offset.
+	3.	Drift Check:
+	•	Listen for echo or phasing if two Pis are close together.
+	•	If you notice a consistent offset, you can reduce the correction threshold or add an offset parameter per Pi.
+
+3.5 Phase 5: Refinements
+	1.	Pause/Resume, Seek
+	•	Add commands to the master script for pause, resume, seek <ms>.
+	•	On the client side, implement player.pause(), player.set_time(), etc.
+	2.	Buffering & Jitter
+	•	Adjust the heartbeat interval or threshold if you have unreliable Wi-Fi.
+	•	Potentially average out drift instead of jumping immediately to correct.
+	3.	User Interface
+	•	Instead of a console input, you could build a small Python GUI (Tkinter, PyQt, etc.) or a web interface to control playback.
+	4.	Dynamic Device Discovery
+	•	For automatic Pi discovery, consider mDNS/Bonjour or a simple broadcast mechanism.
+	•	Or keep manual IP addresses for simplicity.
+	5.	Multiple Tracks / Playlists
+	•	Extend the protocol with a track ID or path.
+	•	Each Pi must have the correct file.
+	•	Master can command “now play track2.mp3 at 0ms.”
+
+4. Deployment & Maintenance
+	•	Auto-Start on Pi Boot:
+	•	If you want your Pi clients to automatically start on boot, create a systemd service or add the script to your crontab with the @reboot directive.
+	•	Network Considerations:
+	•	Make sure each Pi is on the same LAN or can reach the master.
+	•	If you need to go over the internet, you’ll need port forwarding or a VPN.
+	•	Upgrades:
+	•	If you add new commands or fix bugs, push updates to each Pi. A private Git repo or an Ansible script can help automate updates.
+
+5. Potential Next Steps & Variations
+	1.	Use a More Advanced Sync Protocol
+	•	If you need millisecond-level precision across many devices, implement or integrate an NTP or PTP (Precision Time Protocol) for clock alignment.
+	2.	Add Volume & Equalizer Controls
+	•	python-vlc supports audio_set_volume().
+	3.	Central Web Interface
+	•	The master could run a small Flask server or Node.js app that provides a web UI.
+	•	Buttons like “Play,” “Pause,” “Seek,” with real-time updates of connected clients.
+	4.	Synchronize More Than Audio
+	•	If you have lighting or other IoT devices, you can expand the same principle: time-based triggers to coordinate events with the music.
+
+Final Summary
+
+Implementation Phases
+	1.	Env Setup: Install VLC, python-vlc on each Pi; ensure audio works.
+	2.	Master: Simple Python TCP server that broadcasts commands and sends periodic heartbeats with the target playhead.
+	3.	Client (Raspberry Pi): Python script with vlc.MediaPlayer to load local MP3, connect to master, obey commands (play, pause, seek).
+	4.	Sync Logic:
+	•	Master sets future start time so all Pi clients can begin simultaneously.
+	•	Frequent “heartbeat” for drift correction.
+	•	Clients do micro-adjustments if local playback time diverges by > N ms.
+	5.	Testing: Single Pi, then multiple Pi, listening for sync issues.
+	6.	Refine: Add user commands, handle pause/resume/seek. Possibly build a GUI or web control panel.
+
+By following these steps, you’ll build a synchronized multi-device audio system where each Raspberry Pi plays an MP3 in lockstep, all controlled by a single master device sending lightweight control packets. This provides a strong foundation for multi-room or multi-device audio synchronization without streaming large amounts of audio over the network.
+
+--- ./client.py ---
+import socket, json, time
+import vlc
+import argparse
+import os
+
+DELAY_TO_SYNC_SEC = 3
+MASTER_PORT = 12345
+
+player = None  # Initialize player as None
+
+def handle_message(msg, calibration, music_dir):
+    global player
+    cmd = msg.get("cmd", "")
+    print(f"Current time: {int(time.time() * 1000)}")
+    if cmd == "PLAY":
+        filename = msg.get("filename", "")
+        target_time_ns = msg["startTime"] + (DELAY_TO_SYNC_SEC * 1000000000)
+
+        if filename:
+            filepath = os.path.join(music_dir, filename)
+            if not os.path.exists(filepath):
+                print(f"File {filepath} does not exist.")
+                return
+            if player is None:
+                player = vlc.MediaPlayer(filepath)
+            else:
+                media = vlc.Media(filepath)
+                player.set_media(media)
+            player.play()
+            time.sleep(0.01)
+            player.stop()
+            print(f"Received startTime: {msg['startTime']}")
+            print(f"Target time with d: {target_time_ns}")
+            print(f"Current time      : {int(time.time_ns())}")
+            while True:
+                current_time_ns = int(time.time_ns())
+                if current_time_ns >= target_time_ns:
+                    print(f"Current time {current_time_ns}")
+                    break
+                time.sleep(0.000001)
+            print(f"Current time: {int(time.time() * 1000)}")
+            time.sleep(calibration / 1000)
+            player.play()
+    elif cmd == "STOP":
+        if player:
+            player.stop()
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Audio playback synchronization client')
+    parser.add_argument('--ip', required=True,
+                        help='IP address of the master server')
+    parser.add_argument('--port', type=int, default=MASTER_PORT,
+                        help=f'Port to connect to (default: {MASTER_PORT})')
+    parser.add_argument('--verbose', '-v', action='store_true',
+                        help='Enable verbose output')
+    parser.add_argument('--calibration', type=int, required=False, default=0,
+                        help='ms to adjust (default: 0)')
+    parser.add_argument('--music-dir', default='.',
+                        help='Base directory for music files (default: current directory)')
+    return parser.parse_args()
+
+def main():
+    args = parse_args()
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    if args.verbose:
+        print(f"Connecting to {args.ip}:{args.port}")
+
+    try:
+        s.connect((args.ip, args.port))
+        buffer = ""
+
+        while True:
+            data = s.recv(1024)
+            if not data:
+                break
+            buffer += data.decode()
+            while "\n" in buffer:
+                line, buffer = buffer.split("\n", 1)
+                msg = json.loads(line)
+                handle_message(msg, args.calibration, args.music_dir)
+                if args.verbose:
+                    print(f"Received command: {msg['cmd']}")
+    finally:
+        # Clean up
+        s.close()
+
+if __name__ == "__main__":
+    main()
+
+
+--- ./README.md ---
+# SyncPlayer
+
+SyncPlayer is a multi-device, synchronized MP3 player. It allows you to play the same audio files on multiple devices in
+perfect sync.
+
+## Server
+
+The server controls playback and synchronizes all connected clients.
+
+### Running the server
+
+```bash
+# Basic usage
+python main.py --music-dir /path/to/music
+
+# Additional options
+python main.py --music-dir /path/to/music --host 0.0.0.0 --port 12345 --verbose
+```
+
+### Server Interface
+
+The server has two interface modes:
+
+1. **Traditional CLI** (default): Text-based commands
+    - `play` - Start playback from beginning of current track
+    - `play <number>` - Play the song at specified position in playlist
+    - `play <seconds>` - Start playback from specified time position
+    - `play_next` - Play next song in the playlist
+    - `stop` - Stop playback
+    - `list` - List all songs in the playlist
+    - `exit` - Quit the program
+
+
+## Client
+
+The client connects to the server and plays audio in sync with all other clients.
+
+### Running the client
+
+```bash
+# Basic usage
+python client.py --ip <server_ip> --music-dir /path/to/music
+
+# With calibration adjustment (if your device needs timing adjustment)
+python client.py --ip <server_ip> --music-dir /path/to/music --calibration 50
+
+# Additional options
+python client.py --ip <server_ip> --port 12345 --verbose --music-dir /path/to/music
+```
+
+## Important Notes
+
+- All devices must have the same audio files available locally
+- NTP synchronization is recommended for better timing accuracy
+- The `--music-dir` path should contain the audio files to be played
+
+--- ./main.py ---
+import socket, time, threading, json
+import argparse
+import os
+from mutagen import File as MutagenFile
+
+clients = []
+playback_info = {"startTime": None, "positionMs": 0, "playing": False}
+server_running = True
+playlist = []
+track_durations = []
+current_index = 0
+buffer_seconds = 2  # Buffer time added to track duration
+default_track_duration = 180  # Default duration in seconds if mutagen is not available
+playback_timer = None  # Timer for autoplay next
+
+
+def accept_clients(server_socket):
+    while server_running:
+        try:
+            server_socket.settimeout(1)
+            client_socket, addr = server_socket.accept()
+            clients.append(client_socket)
+            print(f"Client connected: {addr}")
+        except socket.timeout:
+            continue
+        except:
+            break
+
+
+def send_to_all(msg_dict):
+    msg_str = json.dumps(msg_dict) + "\n"
+    disconnected_clients = []
+    for c in clients:
+        try:
+            c.sendall(msg_str.encode())
+        except:
+            disconnected_clients.append(c)
+
+    # Remove disconnected clients
+    for c in disconnected_clients:
+        clients.remove(c)
+
+
+def start_playback(filename, position_sec=0):
+    global playback_timer, current_index
+
+    # Cancel existing timer if any
+    if playback_timer is not None:
+        playback_timer.cancel()
+        playback_timer = None
+
+    now = int(time.time_ns())
+    position_ms = int(position_sec * 1000)  # Convert seconds to milliseconds
+    send_to_all({"cmd": "PLAY", "filename": filename, "startTime": now, "startPosMs": position_ms})
+
+    # Start timer for autoplay next
+    duration = track_durations[current_index]
+    remaining_time = duration - position_sec + buffer_seconds
+    if remaining_time > 0:
+        playback_timer = threading.Timer(remaining_time, auto_play_next)
+        playback_timer.start()
+
+
+def stop_playback():
+    global playback_timer
+
+    # Cancel existing timer if any
+    if playback_timer is not None:
+        playback_timer.cancel()
+        playback_timer = None
+
+    send_to_all({"cmd": "STOP"})
+
+
+def auto_play_next():
+    global current_index, playback_timer
+
+    # Reset the timer
+    playback_timer = None
+
+    # Advance to the next track
+    current_index += 1
+    if current_index >= len(playlist):
+        print("Reached end of playlist. Starting from the beginning.")
+        current_index = 0
+
+    filename = playlist[current_index]
+    start_playback(filename)
+
+
+def cleanup():
+    global server_running, playback_timer
+    server_running = False
+
+    # Cancel any playback timer
+    if playback_timer is not None:
+        playback_timer.cancel()
+        playback_timer = None
+
+    for c in clients:
+        try:
+            c.close()
+        except:
+            pass
+    clients.clear()
+
+
+def load_playlist(folder):
+    if not os.path.isdir(folder):
+        raise ValueError(f"Folder {folder} does not exist.")
+
+    # Get absolute path of folder
+    base_folder = os.path.abspath(folder)
+    # Load playlist
+    loaded_playlist = []
+    durations = []
+    for root, dirs, files in os.walk(base_folder):
+        for file in files:
+            # Append relative path to playlist
+            filepath = os.path.join(root, file)
+            relpath = os.path.relpath(filepath, base_folder)
+            loaded_playlist.append(relpath)
+            # Read track duration
+            full_path = os.path.join(base_folder, relpath)
+            try:
+                audio = MutagenFile(full_path)
+                duration = audio.info.length
+                durations.append(duration)
+            except Exception as e:
+                print(f"Could not read duration of {relpath}: {e}")
+                durations.append(default_track_duration)  # Use default duration
+    return loaded_playlist, durations
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Audio playback synchronization server')
+    parser.add_argument('--host', default='0.0.0.0',
+                        help='Host to bind to (default: 0.0.0.0)')
+    parser.add_argument('--port', type=int, default=12345,
+                        help='Port to listen on (default: 12345)')
+    parser.add_argument('--verbose', '-v', action='store_true',
+                        help='Enable verbose output')
+    parser.add_argument('--music-dir', required=True,
+                        help='Directory containing music files')
+    return parser.parse_args()
+
+
+def main():
+    global playlist, track_durations, current_index
+
+    args = parse_args()
+
+    # Load playlist at startup
+    try:
+        playlist, track_durations = load_playlist(args.music_dir)
+        print(f"Loaded {len(playlist)} files into playlist.")
+    except ValueError as e:
+        print(f"Error: {e}")
+        return
+
+    if args.verbose:
+        print(f"Starting server on {args.host}:{args.port}")
+
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_socket.bind((args.host, args.port))
+    server_socket.listen(5)
+    accept_thread = threading.Thread(target=accept_clients, args=(server_socket,))
+    accept_thread.start()
+
+    print("Commands:")
+    print("  play            - Start playback from beginning of the playlist")
+    print("  play <seconds>  - Start playback from specified position")
+    print("  play_next       - Play next song in the playlist")
+    print("  stop            - Stop playback")
+    print("  exit            - Quit the program")
+
+    while True:
+        cmd = input("> ")
+        cmd_parts = cmd.strip().split()
+
+        if not cmd_parts:
+            continue
+
+        if cmd_parts[0] == "play":
+            if not playlist:
+                print("Playlist is empty.")
+                continue
+            if len(cmd_parts) > 1:
+                try:
+                    start_sec = float(cmd_parts[1])
+                    filename = playlist[current_index]
+                    start_playback(filename, start_sec)
+                    if args.verbose:
+                        print(f"Starting playback at {start_sec} seconds of {filename}")
+                except ValueError:
+                    print("Invalid time format. Please use seconds (e.g., 'play 5' or 'play 5.5')")
+            else:
+                filename = playlist[current_index]
+                start_playback(filename)
+                if args.verbose:
+                    print(f"Starting playback {filename} from beginning")
+        elif cmd_parts[0] == "play_next":
+            if not playlist:
+                print("Playlist is empty.")
+                continue
+            # Advance to the next track
+            current_index += 1
+            if current_index >= len(playlist):
+                print("Reached end of playlist.")
+                current_index = 0
+            filename = playlist[current_index]
+            start_playback(filename)
+            if args.verbose:
+                print(f"Playing next song: {filename}")
+        elif cmd_parts[0] == "stop":
+            stop_playback()
+            if args.verbose:
+                print("Stopping playback")
+        elif cmd_parts[0] == "exit":
+            if args.verbose:
+                print("Shutting down server...")
+            cleanup()
+            break
+        else:
+            print("Unknown command")
+
+    server_socket.close()
+    accept_thread.join()
+    print("Server shutdown complete")
+
+
+if __name__ == "__main__":
+    main()
+
+

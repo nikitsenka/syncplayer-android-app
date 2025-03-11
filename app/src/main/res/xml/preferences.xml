@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory
+        android:key="server_category"
+        android:title="@string/pref_category_server">
+
+        <EditTextPreference
+            android:key="server_ip"
+            android:selectAllOnFocus="true"
+            android:singleLine="true"
+            android:title="@string/pref_server_ip"
+            android:summary="@string/pref_server_ip_summary"
+            android:defaultValue="192.168.1.1" />
+
+        <EditTextPreference
+            android:key="server_port"
+            android:selectAllOnFocus="true"
+            android:singleLine="true"
+            android:inputType="number"
+            android:title="@string/pref_server_port"
+            android:summary="@string/pref_server_port_summary"
+            android:defaultValue="12345" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:key="playback_category"
+        android:title="@string/pref_category_playback">
+
+        <Preference
+            android:key="music_directory"
+            android:title="@string/pref_music_directory"
+            android:summary="@string/pref_music_directory_summary" />
+
+        <EditTextPreference
+            android:key="calibration"
+            android:selectAllOnFocus="true"
+            android:singleLine="true"
+            android:inputType="numberSigned"
+            android:title="@string/pref_calibration"
+            android:summary="@string/pref_calibration_summary"
+            android:defaultValue="0" />
+
+    </PreferenceCategory>
+    
+    <PreferenceCategory
+        android:key="debug_category"
+        android:title="@string/pref_category_debug">
+        
+        <SwitchPreference
+            android:key="enable_debug"
+            android:title="@string/pref_enable_debug"
+            android:summary="@string/pref_enable_debug_summary"
+            android:defaultValue="false" />
+            
+    </PreferenceCategory>
+
+</PreferenceScreen>
